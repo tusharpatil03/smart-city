@@ -1,7 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CapturePhoto } from "../components/CapturePhoto";
-import type { CaptureResult } from "../components/CapturePhoto";
 import { MapView } from "../components/MapView";
 import { civicApi } from "../services/api";
 import type { CivicIssueCategory } from "../services/api";
@@ -16,8 +14,6 @@ const CATEGORIES: CivicIssueCategory[] = [
   "Other"
 ];
 
-type PhotoMode = "capture" | "upload";
-
 export function CreateIssuePage() {
   const navigate = useNavigate();
   const [formState, setFormState] = useState({
@@ -25,8 +21,6 @@ export function CreateIssuePage() {
     description: "",
     category: "" as CivicIssueCategory | ""
   });
-  const [photoMode, setPhotoMode] = useState<PhotoMode>("capture");
-  const [capturedPhoto, setCapturedPhoto] = useState<CaptureResult | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
   const [detectingLocation, setDetectingLocation] = useState(false);
@@ -38,14 +32,8 @@ export function CreateIssuePage() {
     setFormState((currentState) => ({ ...currentState, [field]: value }));
   };
 
-  const effectiveImage = useMemo(() => capturedPhoto?.imageDataUrl ?? uploadPreview, [capturedPhoto, uploadPreview]);
-  const effectiveLocation = useMemo<[number, number] | null>(() => {
-    if (capturedPhoto) {
-      return [capturedPhoto.latitude, capturedPhoto.longitude];
-    }
-
-    return selectedLocation;
-  }, [capturedPhoto, selectedLocation]);
+  const effectiveImage = uploadPreview;
+  const effectiveLocation = selectedLocation;
 
   const detectLocation = (): void => {
     if (!navigator.geolocation) {
@@ -170,66 +158,31 @@ export function CreateIssuePage() {
         </article>
 
         <article className="panel">
-          <div className="photo-header">
-            <h2>Photo</h2>
-            <div className="mode-toggle" role="tablist" aria-label="Photo mode">
-              <button
-                type="button"
-                className={photoMode === "capture" ? "active" : ""}
-                onClick={() => {
-                  setPhotoMode("capture");
-                  setUploadPreview(null);
-                }}
-              >
-                Capture
-              </button>
-              <button
-                type="button"
-                className={photoMode === "upload" ? "active" : ""}
-                onClick={() => {
-                  setPhotoMode("upload");
-                  setCapturedPhoto(null);
-                }}
-              >
-                Upload
-              </button>
-            </div>
-          </div>
+          <h2>Photo</h2>
 
-          {photoMode === "capture" ? (
-            <CapturePhoto
-              captured={capturedPhoto}
-              onCapture={(result) => {
-                setCapturedPhoto(result);
-                setSelectedLocation([result.latitude, result.longitude]);
+          <div className="upload-box">
+            {uploadPreview ? <img src={uploadPreview} alt="Upload preview" /> : <p>Select an image</p>}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+
+                if (!file) {
+                  return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = () => setUploadPreview(String(reader.result ?? ""));
+                reader.readAsDataURL(file);
               }}
-              onClear={() => setCapturedPhoto(null)}
             />
-          ) : (
-            <div className="upload-box">
-              {uploadPreview ? <img src={uploadPreview} alt="Upload preview" /> : <p>Select an image</p>}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-
-                  if (!file) {
-                    return;
-                  }
-
-                  const reader = new FileReader();
-                  reader.onload = () => setUploadPreview(String(reader.result ?? ""));
-                  reader.readAsDataURL(file);
-                }}
-              />
-            </div>
-          )}
+          </div>
         </article>
 
         <article className="panel">
           <h2>Location</h2>
-          <button className="button button--ghost" type="button" onClick={detectLocation} disabled={detectingLocation}>
+          <button className="button button--primary" type="button" onClick={detectLocation} disabled={detectingLocation}>
             {detectingLocation ? "Detecting..." : "Detect My Location"}
           </button>
 
@@ -247,9 +200,6 @@ export function CreateIssuePage() {
               height="260px"
               onLocationSelect={(lat, lng) => {
                 setSelectedLocation([lat, lng]);
-                if (capturedPhoto) {
-                  setCapturedPhoto({ ...capturedPhoto, latitude: lat, longitude: lng });
-                }
               }}
               selectedLocation={effectiveLocation}
             />

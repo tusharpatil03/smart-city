@@ -8,6 +8,9 @@ interface EnvConfig {
   nodeEnv: NodeEnvironment;
   port: number;
   mongodbUri: string;
+  cloudinaryCloudName: string;
+  cloudinaryApiKey: string;
+  cloudinaryApiSecret: string;
 }
 
 const parseNodeEnv = (value: string | undefined): NodeEnvironment => {
@@ -39,5 +42,8 @@ const requireValue = (value: string | undefined, key: string): string => {
 export const env: EnvConfig = {
   nodeEnv: parseNodeEnv(process.env.NODE_ENV),
   port: parsePort(process.env.PORT),
-  mongodbUri: requireValue(process.env.MONGODB_URI, "MONGODB_URI")
+  mongodbUri: requireValue(process.env.MONGODB_URI, "MONGODB_URI"),
+  cloudinaryCloudName: requireValue(process.env.CLOUDINARY_CLOUD_NAME, "CLOUDINARY_CLOUD_NAME"),
+  cloudinaryApiKey: requireValue(process.env.CLOUDINARY_API_KEY, "CLOUDINARY_API_KEY"),
+  cloudinaryApiSecret: requireValue(process.env.CLOUDINARY_API_SECRET, "CLOUDINARY_API_SECRET")
 };
