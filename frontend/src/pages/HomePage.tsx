@@ -4,11 +4,17 @@ import { IssueCard } from "../components/IssueCard";
 import { IssueDetailModal } from "../components/IssueDetailModal";
 import { useI18n } from "../i18n";
 import { MapView } from "../components/MapView";
-import { civicApi, type CivicIssue, type VoteType } from "../services/api";
+import { civicApi, type CivicIssue, type IssueStats, type VoteType } from "../services/api";
 
 export function HomePage() {
   const { t } = useI18n();
   const [issues, setIssues] = useState<CivicIssue[]>([]);
+  const [stats, setStats] = useState<IssueStats>({
+    total: 0,
+    reported: 0,
+    inProgress: 0,
+    resolved: 0
+  });
   const [selectedIssue, setSelectedIssue] = useState<CivicIssue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,14 +23,14 @@ export function HomePage() {
   useEffect(() => {
     let mounted = true;
 
-    civicApi
-      .getReports()
-      .then((data) => {
+    Promise.all([civicApi.getReports(), civicApi.getIssueStats()])
+      .then(([issueData, statsData]) => {
         if (!mounted) {
           return;
         }
 
-        setIssues(data);
+        setIssues(issueData);
+        setStats(statsData);
         setLoading(false);
       })
       .catch((err) => {
@@ -113,13 +119,6 @@ export function HomePage() {
     } finally {
       setVotingIssueIds((current) => current.filter((issueId) => issueId !== issue.id));
     }
-  };
-
-  const stats = {
-    total: issues.length,
-    reported: issues.filter((issue) => issue.status === "Reported").length,
-    inProgress: issues.filter((issue) => issue.status === "In Progress").length,
-    resolved: issues.filter((issue) => issue.status === "Resolved").length
   };
 
   const statCards = [

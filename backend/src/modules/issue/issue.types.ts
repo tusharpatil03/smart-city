@@ -139,3 +139,10 @@ export interface VoteOnIssueInput {
   userId: string;
   type: VoteType;
 }
+
+export interface IssueStats {
+  total: number;
+  reported: number;
+  inProgress: number;
+  resolved: number;
+}

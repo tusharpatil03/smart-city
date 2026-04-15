@@ -86,6 +86,10 @@ export class IssueService {
     return reverseGeocode(lat, lng);
   }
 
+  async getIssueStats() {
+    return issueRepository.getStats();
+  }
+
   async getIssueById(id: string) {
     const issue = await issueRepository.findById(id);
 

@@ -1,7 +1,7 @@
 import { FilterQuery } from "mongoose";
 import { GeoFilter } from "../../shared/utils/geo.utils";
 import { IssueDocument, IssueModel } from "./issue.model";
-import { IssueCategory, IssueStatus, VoteType } from "./issue.types";
+import { IssueCategory, IssueStatus, VoteType, IssueStats } from "./issue.types";
 
 export interface CreateIssueRepositoryInput {
   title: string;
@@ -96,6 +96,22 @@ export class IssueRepository {
 
     await issue.save();
     return issue;
+  }
+
+  async getStats(): Promise<IssueStats> {
+    const [total, reported, inProgress, resolved] = await Promise.all([
+      IssueModel.countDocuments(),
+      IssueModel.countDocuments({ status: IssueStatus.REPORTED }),
+      IssueModel.countDocuments({ status: IssueStatus.IN_PROGRESS }),
+      IssueModel.countDocuments({ status: IssueStatus.RESOLVED })
+    ]);
+
+    return {
+      total,
+      reported,
+      inProgress,
+      resolved
+    };
   }
 }
 

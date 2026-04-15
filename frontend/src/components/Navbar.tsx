@@ -6,7 +6,8 @@ export function Navbar() {
 
   const navItems = [
     { to: "/", label: t("navbar.map") },
-    { to: "/issues", label: t("navbar.issues") }
+    { to: "/issues", label: t("navbar.issues") },
+    { to: "/admin", label: t("navbar.admin") }
   ];
 
   return (

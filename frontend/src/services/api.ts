@@ -67,6 +67,13 @@ export interface LocationPreviewResponse {
   address: string;
 }
 
+export interface IssueStats {
+  total: number;
+  reported: number;
+  inProgress: number;
+  resolved: number;
+}
+
 interface ReportApiResponse {
   id: string;
   title: string;
@@ -306,5 +313,9 @@ export const civicApi = {
     );
 
     return response.address;
+  },
+
+  async getIssueStats(): Promise<IssueStats> {
+    return request<IssueStats>("/api/issues/stats");
   }
 };

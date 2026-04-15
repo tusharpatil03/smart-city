@@ -85,6 +85,15 @@ export class IssueController {
     }
   }
 
+  async getIssueStats(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const stats = await issueService.getIssueStats();
+      res.status(200).json(stats);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getIssueById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;

@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
+import { authRouter } from "./modules/auth/auth.routes";
 import { issueController } from "./modules/issue/issue.controller";
 import { issueRouter } from "./modules/issue/issue.routes";
 import { errorMiddleware, notFoundMiddleware } from "./shared/middleware/error.middleware";
@@ -23,6 +24,8 @@ app.get("/api/healthz", (_req, res) => {
     status: "ok"
   });
 });
+
+app.use("/api/auth", authRouter);
 
 app.post("/api/report", (req, res, next) => {
   void issueController.createReport(req, res, next);

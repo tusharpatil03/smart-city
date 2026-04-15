@@ -8,6 +8,7 @@ interface EnvConfig {
   nodeEnv: NodeEnvironment;
   port: number;
   mongodbUri: string;
+  jwtSecret: string;
 }
 
 const parseNodeEnv = (value: string | undefined): NodeEnvironment => {
@@ -39,5 +40,8 @@ const requireValue = (value: string | undefined, key: string): string => {
 export const env: EnvConfig = {
   nodeEnv: parseNodeEnv(process.env.NODE_ENV),
   port: parsePort(process.env.PORT),
-  mongodbUri: requireValue(process.env.MONGODB_URI, "MONGODB_URI")
+  mongodbUri: requireValue(process.env.MONGODB_URI, "MONGODB_URI"),
+  jwtSecret: process.env.JWT_SECRET && process.env.JWT_SECRET.trim().length > 0
+    ? process.env.JWT_SECRET
+    : "dev-jwt-secret"
 };

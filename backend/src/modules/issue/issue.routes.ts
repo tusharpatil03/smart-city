@@ -4,6 +4,7 @@ import {
   validateStatusUpdateRequest,
   validateVoteUpdateRequest
 } from "../../shared/middleware/validate.middleware";
+import { protectAuthority } from "../../shared/middleware/auth.middleware";
 import { issueController } from "./issue.controller";
 
 const issueRouter = Router();
@@ -14,6 +15,10 @@ issueRouter.post("/report", (req, res, next) => {
 
 issueRouter.get("/reports", (req, res, next) => {
   void issueController.getReports(req, res, next);
+});
+
+issueRouter.get("/stats", (req, res, next) => {
+  void issueController.getIssueStats(req, res, next);
 });
 
 issueRouter.post("/", (req, res, next) => {
@@ -32,9 +37,15 @@ issueRouter.get("/:id", validateIssueIdParam, (req, res, next) => {
   void issueController.getIssueById(req, res, next);
 });
 
-issueRouter.patch("/:id/status", validateIssueIdParam, validateStatusUpdateRequest, (req, res, next) => {
-  void issueController.updateIssueStatus(req, res, next);
-});
+issueRouter.patch(
+  "/:id/status",
+  protectAuthority,
+  validateIssueIdParam,
+  validateStatusUpdateRequest,
+  (req, res, next) => {
+    void issueController.updateIssueStatus(req, res, next);
+  }
+);
 
 issueRouter.put("/:id/vote", validateIssueIdParam, validateVoteUpdateRequest, (req, res, next) => {
   void issueController.voteOnIssue(req, res, next);
