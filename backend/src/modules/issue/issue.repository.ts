@@ -1,7 +1,7 @@
 import { FilterQuery } from "mongoose";
 import { GeoFilter } from "../../shared/utils/geo.utils";
 import { IssueDocument, IssueModel } from "./issue.model";
-import { IssueCategory, IssueStatus } from "./issue.types";
+import { IssueCategory, IssueStatus, VoteType } from "./issue.types";
 
 export interface CreateIssueRepositoryInput {
   title: string;
@@ -68,6 +68,34 @@ export class IssueRepository {
 
   async updateStatus(id: string, status: IssueStatus): Promise<IssueDocument | null> {
     return IssueModel.findByIdAndUpdate(id, { status }, { new: true });
+  }
+
+  async saveVote(
+    issueId: string,
+    userId: string,
+    type: VoteType
+  ): Promise<IssueDocument | null> {
+    const issue = await IssueModel.findById(issueId);
+
+    if (!issue) {
+      return null;
+    }
+
+    const existingVote = issue.votes.find((vote) => vote.userId.toString() === userId);
+
+    if (!existingVote) {
+      issue.votes.push({
+        userId,
+        type
+      });
+    } else if (existingVote.type === type) {
+      issue.votes = issue.votes.filter((vote) => vote.userId.toString() !== userId);
+    } else {
+      existingVote.type = type;
+    }
+
+    await issue.save();
+    return issue;
   }
 }
 

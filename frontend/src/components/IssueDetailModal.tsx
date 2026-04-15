@@ -1,4 +1,5 @@
 import { StatusBadge } from "./StatusBadge";
+import { useI18n } from "../i18n";
 import type { CivicIssue } from "../services/api";
 
 interface IssueDetailModalProps {
@@ -7,6 +8,8 @@ interface IssueDetailModalProps {
 }
 
 export function IssueDetailModal({ issue, onClose }: IssueDetailModalProps) {
+  const { formatDateTime, t, translateCategory } = useI18n();
+
   if (!issue) {
     return null;
   }
@@ -15,7 +18,7 @@ export function IssueDetailModal({ issue, onClose }: IssueDetailModalProps) {
     <div className="issue-modal" onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div className="issue-modal__backdrop" onClick={onClose} />
       <article className="issue-modal__panel">
-        <button className="issue-modal__close" type="button" onClick={onClose} aria-label="Close issue details">
+        <button className="issue-modal__close" type="button" onClick={onClose} aria-label={t("modal.closeIssueDetails")}>
           ×
         </button>
 
@@ -26,7 +29,7 @@ export function IssueDetailModal({ issue, onClose }: IssueDetailModalProps) {
         <div className="issue-modal__content">
           <div className="issue-modal__header">
             <div>
-              <p className="issue-modal__category">{issue.category}</p>
+              <p className="issue-modal__category">{translateCategory(issue.category)}</p>
               <h2>{issue.title}</h2>
             </div>
             <StatusBadge status={issue.status} />
@@ -36,19 +39,19 @@ export function IssueDetailModal({ issue, onClose }: IssueDetailModalProps) {
 
           <div className="issue-modal__grid">
             <div>
-              <p className="issue-modal__label">Reported</p>
-              <p>{new Date(issue.createdAt).toLocaleString()}</p>
+              <p className="issue-modal__label">{t("modal.reported")}</p>
+              <p>{formatDateTime(issue.createdAt)}</p>
             </div>
             <div>
-              <p className="issue-modal__label">Updated</p>
-              <p>{new Date(issue.updatedAt).toLocaleString()}</p>
+              <p className="issue-modal__label">{t("common.updated")}</p>
+              <p>{formatDateTime(issue.updatedAt)}</p>
             </div>
             <div>
-              <p className="issue-modal__label">Latitude</p>
+              <p className="issue-modal__label">{t("issueDetail.latitude")}</p>
               <p>{issue.latitude.toFixed(5)}</p>
             </div>
             <div>
-              <p className="issue-modal__label">Longitude</p>
+              <p className="issue-modal__label">{t("issueDetail.longitude")}</p>
               <p>{issue.longitude.toFixed(5)}</p>
             </div>
           </div>

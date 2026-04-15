@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useI18n } from "../i18n";
 
 export interface CaptureResult {
   imageDataUrl: string;
@@ -13,6 +14,7 @@ interface CapturePhotoProps {
 }
 
 export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps
 
       if (!navigator.geolocation) {
         setLoading(false);
-        setError("Geolocation is not available in this browser.");
+        setError(t("errors.geolocationUnavailable"));
         return;
       }
 
@@ -42,7 +44,7 @@ export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps
         },
         () => {
           setLoading(false);
-          setError("Could not read location. Enable GPS permissions and retry.");
+          setError(t("errors.locationReadFailed"));
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
@@ -55,12 +57,12 @@ export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps
     <div className="capture-box">
       {captured ? (
         <div className="capture-preview">
-          <img src={captured.imageDataUrl} alt="Captured issue" />
+          <img src={captured.imageDataUrl} alt={t("common.photo")} />
           <div className="capture-preview__meta">
             {captured.latitude.toFixed(5)}, {captured.longitude.toFixed(5)}
           </div>
           <button type="button" className="button button--secondary" onClick={onClear}>
-            Retake
+            {t("common.retake")}
           </button>
         </div>
       ) : (
@@ -70,7 +72,7 @@ export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps
             className="button button--primary"
             onClick={() => inputRef.current?.click()}
           >
-            Capture Photo
+            {t("common.capturePhoto")}
           </button>
           <input
             ref={inputRef}
@@ -86,7 +88,7 @@ export function CapturePhoto({ captured, onCapture, onClear }: CapturePhotoProps
               event.currentTarget.value = "";
             }}
           />
-          {loading ? <p className="field-help">Fetching GPS coordinates...</p> : null}
+          {loading ? <p className="field-help">{t("capture.fetchingGps")}</p> : null}
           {error ? <p className="capture-error">{error}</p> : null}
         </>
       )}

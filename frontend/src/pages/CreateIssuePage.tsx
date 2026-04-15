@@ -1,7 +1,7 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CapturePhoto } from "../components/CapturePhoto";
-import type { CaptureResult } from "../components/CapturePhoto";
+import { ImageUpload } from "../components/ImageUpload";
+import { useI18n } from "../i18n";
 import { MapView } from "../components/MapView";
 import { civicApi } from "../services/api";
 import type { CivicIssueCategory } from "../services/api";
@@ -16,19 +16,18 @@ const CATEGORIES: CivicIssueCategory[] = [
   "Other"
 ];
 
-type PhotoMode = "capture" | "upload";
-
 export function CreateIssuePage() {
+  const { t, translateCategory } = useI18n();
   const navigate = useNavigate();
   const [formState, setFormState] = useState({
     title: "",
     description: "",
     category: "" as CivicIssueCategory | ""
   });
-  const [photoMode, setPhotoMode] = useState<PhotoMode>("capture");
-  const [capturedPhoto, setCapturedPhoto] = useState<CaptureResult | null>(null);
-  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
+  const [selectedLocationName, setSelectedLocationName] = useState<string | null>(null);
+  const [loadingLocationName, setLoadingLocationName] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +37,53 @@ export function CreateIssuePage() {
     setFormState((currentState) => ({ ...currentState, [field]: value }));
   };
 
-  const effectiveImage = useMemo(() => capturedPhoto?.imageDataUrl ?? uploadPreview, [capturedPhoto, uploadPreview]);
-  const effectiveLocation = useMemo<[number, number] | null>(() => {
-    if (capturedPhoto) {
-      return [capturedPhoto.latitude, capturedPhoto.longitude];
+  const effectiveImage = useMemo(() => uploadedImage, [uploadedImage]);
+  const effectiveLocation = useMemo<[number, number] | null>(() => selectedLocation, [selectedLocation]);
+
+  useEffect(() => {
+    if (!effectiveLocation) {
+      setSelectedLocationName(null);
+      setLoadingLocationName(false);
+      return;
     }
 
-    return selectedLocation;
-  }, [capturedPhoto, selectedLocation]);
+    let active = true;
+    const [latitude, longitude] = effectiveLocation;
+
+    setLoadingLocationName(true);
+
+    civicApi
+      .getLocationPreview(latitude, longitude)
+      .then((address) => {
+        if (!active) {
+          return;
+        }
+
+        setSelectedLocationName(address);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setSelectedLocationName(null);
+      })
+      .finally(() => {
+        if (!active) {
+          return;
+        }
+
+        setLoadingLocationName(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [effectiveLocation]);
 
   const detectLocation = (): void => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by this browser.");
+      setError(t("errors.geolocationUnsupported"));
       return;
     }
 
@@ -62,7 +96,7 @@ export function CreateIssuePage() {
         setDetectingLocation(false);
       },
       () => {
-        setError("Unable to detect location. Select it manually on the map.");
+        setError(t("errors.detectLocationFailed"));
         setDetectingLocation(false);
       }
     );
@@ -73,12 +107,12 @@ export function CreateIssuePage() {
     setError(null);
 
     if (!effectiveLocation) {
-      setError("Please capture or select a location before submitting.");
+      setError(t("errors.locationRequired"));
       return;
     }
 
     if (!formState.category) {
-      setError("Please choose a category.");
+      setError(t("errors.categoryRequired"));
       return;
     }
 
@@ -98,7 +132,7 @@ export function CreateIssuePage() {
       setSubmitted(true);
       setTimeout(() => navigate("/issues"), 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit issue.");
+      setError(err instanceof Error ? err.message : t("errors.submitIssueFailed"));
     } finally {
       setSaving(false);
     }
@@ -108,8 +142,8 @@ export function CreateIssuePage() {
     return (
       <section className="civic-page civic-page--subtle report-success">
         <article className="panel panel--narrow">
-          <h1>Issue Reported</h1>
-          <p>Thanks for helping improve the city. Redirecting to issues list...</p>
+          <h1>{t("create.successTitle")}</h1>
+          <p>{t("create.successMessage")}</p>
         </article>
       </section>
     );
@@ -118,42 +152,42 @@ export function CreateIssuePage() {
   return (
     <section className="civic-page civic-page--subtle">
       <header className="report-header">
-        <h1>Report an Issue</h1>
-        <p>Help your city teams respond faster by submitting clear details and location.</p>
+        <h1>{t("create.pageTitle")}</h1>
+        <p>{t("create.pageSubtitle")}</p>
       </header>
 
       <form className="report-form" onSubmit={handleSubmit}>
         <article className="panel">
-          <h2>Issue Details</h2>
+          <h2>{t("create.issueDetails")}</h2>
 
           <div className="field-group">
-            <label htmlFor="title">Issue Title</label>
+            <label htmlFor="title">{t("create.issueTitle")}</label>
             <input
               id="title"
               name="title"
               type="text"
               value={formState.title}
               onChange={(event) => updateField("title", event.target.value)}
-              placeholder="Large pothole on Main Street"
+              placeholder={t("create.issueTitlePlaceholder")}
               required
             />
           </div>
 
           <div className="field-group">
-            <label htmlFor="description">Description</label>
+            <label htmlFor="description">{t("common.description")}</label>
             <textarea
               id="description"
               name="description"
               value={formState.description}
               onChange={(event) => updateField("description", event.target.value)}
-              placeholder="Describe what you observed and any hazards..."
+              placeholder={t("create.descriptionPlaceholder")}
               rows={4}
               required
             />
           </div>
 
           <div className="field-group">
-            <label>Category</label>
+            <label>{t("common.category")}</label>
             <div className="category-grid">
               {CATEGORIES.map((category) => (
                 <button
@@ -162,7 +196,7 @@ export function CreateIssuePage() {
                   className={formState.category === category ? "active" : ""}
                   onClick={() => updateField("category", category)}
                 >
-                  {category}
+                  {translateCategory(category)}
                 </button>
               ))}
             </div>
@@ -171,75 +205,39 @@ export function CreateIssuePage() {
 
         <article className="panel">
           <div className="photo-header">
-            <h2>Photo</h2>
-            <div className="mode-toggle" role="tablist" aria-label="Photo mode">
-              <button
-                type="button"
-                className={photoMode === "capture" ? "active" : ""}
-                onClick={() => {
-                  setPhotoMode("capture");
-                  setUploadPreview(null);
-                }}
-              >
-                Capture
-              </button>
-              <button
-                type="button"
-                className={photoMode === "upload" ? "active" : ""}
-                onClick={() => {
-                  setPhotoMode("upload");
-                  setCapturedPhoto(null);
-                }}
-              >
-                Upload
-              </button>
-            </div>
+            <h2>{t("common.photo")}</h2>
           </div>
+          <p className="field-help">{t("create.photoOptionsHelp")}</p>
 
-          {photoMode === "capture" ? (
-            <CapturePhoto
-              captured={capturedPhoto}
-              onCapture={(result) => {
-                setCapturedPhoto(result);
-                setSelectedLocation([result.latitude, result.longitude]);
-              }}
-              onClear={() => setCapturedPhoto(null)}
-            />
-          ) : (
-            <div className="upload-box">
-              {uploadPreview ? <img src={uploadPreview} alt="Upload preview" /> : <p>Select an image</p>}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-
-                  if (!file) {
-                    return;
-                  }
-
-                  const reader = new FileReader();
-                  reader.onload = () => setUploadPreview(String(reader.result ?? ""));
-                  reader.readAsDataURL(file);
-                }}
-              />
-            </div>
-          )}
+          <ImageUpload
+            imageDataUrl={uploadedImage}
+            onImageChange={(imageDataUrl) => {
+              setUploadedImage(imageDataUrl);
+            }}
+          />
         </article>
 
         <article className="panel">
-          <h2>Location</h2>
-          <button className="button button--ghost" type="button" onClick={detectLocation} disabled={detectingLocation}>
-            {detectingLocation ? "Detecting..." : "Detect My Location"}
-          </button>
+          <h2>{t("common.location")}</h2>
 
           {effectiveLocation ? (
             <p className="field-help">
-              Location set: {effectiveLocation[0].toFixed(5)}, {effectiveLocation[1].toFixed(5)}
+              {loadingLocationName
+                ? t("create.resolvingLocation")
+                : selectedLocationName ?? t("create.locationUnavailable")}
             </p>
           ) : null}
 
           <div className="report-map">
+            <button
+              className="button button--primary report-map__capture-btn"
+              type="button"
+              onClick={detectLocation}
+              disabled={detectingLocation}
+            >
+              {detectingLocation ? t("common.detecting") : t("common.captureLocation")}
+            </button>
+
             <MapView
               issues={[]}
               center={effectiveLocation ?? [40.7128, -74.006]}
@@ -247,9 +245,6 @@ export function CreateIssuePage() {
               height="260px"
               onLocationSelect={(lat, lng) => {
                 setSelectedLocation([lat, lng]);
-                if (capturedPhoto) {
-                  setCapturedPhoto({ ...capturedPhoto, latitude: lat, longitude: lng });
-                }
               }}
               selectedLocation={effectiveLocation}
             />
@@ -266,14 +261,14 @@ export function CreateIssuePage() {
               navigate("/");
             }}
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             className="button button--primary"
             type="submit"
             disabled={saving}
           >
-            {saving ? "Submitting..." : "Submit Report"}
+            {saving ? t("common.submitting") : t("common.submitReport")}
           </button>
         </div>
       </form>

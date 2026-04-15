@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { IssueCard } from "../components/IssueCard";
 import { IssueDetailModal } from "../components/IssueDetailModal";
+import { useI18n } from "../i18n";
 import { civicApi } from "../services/api";
-import type { CivicIssue, CivicIssueCategory, CivicIssueStatus } from "../services/api";
+import type {
+  CivicIssue,
+  CivicIssueCategory,
+  CivicIssueStatus,
+  VoteType
+} from "../services/api";
 
 const STATUS_OPTIONS: Array<CivicIssueStatus | "All"> = [
   "All",
@@ -23,6 +29,7 @@ const CATEGORY_OPTIONS: Array<CivicIssueCategory | "All"> = [
 ];
 
 export function IssueListPage() {
+  const { t, translateCategory, translateStatus } = useI18n();
   const [issues, setIssues] = useState<CivicIssue[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<CivicIssue | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,6 +38,7 @@ export function IssueListPage() {
   const [statusFilter, setStatusFilter] = useState<CivicIssueStatus | "All">("All");
   const [categoryFilter, setCategoryFilter] = useState<CivicIssueCategory | "All">("All");
   const [showFilters, setShowFilters] = useState(false);
+  const [votingIssueIds, setVotingIssueIds] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -50,38 +58,120 @@ export function IssueListPage() {
           return;
         }
 
-        setError(err instanceof Error ? err.message : "Failed to load issues");
+        setError(err instanceof Error ? err.message : t("errors.loadIssues"));
         setLoading(false);
       });
 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
+
+  const applyOptimisticVote = (issue: CivicIssue, nextType: VoteType): CivicIssue => {
+    const previousVote = issue.currentUserVote;
+
+    if (previousVote === nextType) {
+      const nextUpvotes = nextType === "upvote" ? Math.max(0, issue.upvotes - 1) : issue.upvotes;
+      const nextDownvotes =
+        nextType === "downvote" ? Math.max(0, issue.downvotes - 1) : issue.downvotes;
+
+      return {
+        ...issue,
+        upvotes: nextUpvotes,
+        downvotes: nextDownvotes,
+        netScore: nextUpvotes - nextDownvotes,
+        currentUserVote: null
+      };
+    }
+
+    const nextUpvotes =
+      nextType === "upvote"
+        ? issue.upvotes + 1
+        : previousVote === "upvote"
+          ? Math.max(0, issue.upvotes - 1)
+          : issue.upvotes;
+
+    const nextDownvotes =
+      nextType === "downvote"
+        ? issue.downvotes + 1
+        : previousVote === "downvote"
+          ? Math.max(0, issue.downvotes - 1)
+          : issue.downvotes;
+
+    return {
+      ...issue,
+      upvotes: nextUpvotes,
+      downvotes: nextDownvotes,
+      netScore: nextUpvotes - nextDownvotes,
+      currentUserVote: nextType
+    };
+  };
+
+  const handleVote = async (issue: CivicIssue, type: VoteType): Promise<void> => {
+    if (votingIssueIds.includes(issue.id)) {
+      return;
+    }
+
+    const optimisticIssue = applyOptimisticVote(issue, type);
+
+    setVotingIssueIds((current) => [...current, issue.id]);
+    setIssues((currentIssues) =>
+      currentIssues.map((currentIssue) =>
+        currentIssue.id === issue.id ? optimisticIssue : currentIssue
+      )
+    );
+
+    try {
+      const updatedIssue = await civicApi.voteIssue(issue.id, type);
+      setIssues((currentIssues) =>
+        currentIssues.map((currentIssue) =>
+          currentIssue.id === issue.id ? updatedIssue : currentIssue
+        )
+      );
+      setError(null);
+    } catch (err) {
+      setIssues((currentIssues) =>
+        currentIssues.map((currentIssue) =>
+          currentIssue.id === issue.id ? issue : currentIssue
+        )
+      );
+      setError(err instanceof Error ? err.message : t("errors.loadIssues"));
+    } finally {
+      setVotingIssueIds((current) => current.filter((issueId) => issueId !== issue.id));
+    }
+  };
 
   const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
-      const normalizedSearch = searchQuery.trim().toLowerCase();
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        issue.title.toLowerCase().includes(normalizedSearch) ||
-        issue.description.toLowerCase().includes(normalizedSearch) ||
-        issue.category.toLowerCase().includes(normalizedSearch);
+    return issues
+      .filter((issue) => {
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+        const matchesSearch =
+          normalizedSearch.length === 0 ||
+          issue.title.toLowerCase().includes(normalizedSearch) ||
+          issue.description.toLowerCase().includes(normalizedSearch) ||
+          issue.category.toLowerCase().includes(normalizedSearch);
 
-      const matchesStatus = statusFilter === "All" || issue.status === statusFilter;
-      const matchesCategory = categoryFilter === "All" || issue.category === categoryFilter;
+        const matchesStatus = statusFilter === "All" || issue.status === statusFilter;
+        const matchesCategory = categoryFilter === "All" || issue.category === categoryFilter;
 
-      return matchesSearch && matchesStatus && matchesCategory;
-    });
+        return matchesSearch && matchesStatus && matchesCategory;
+      })
+      .sort((left, right) => {
+        if (right.netScore !== left.netScore) {
+          return right.netScore - left.netScore;
+        }
+
+        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+      });
   }, [issues, searchQuery, statusFilter, categoryFilter]);
 
   return (
     <section className="civic-page civic-page--subtle">
       <header className="issues-header">
         <div>
-          <h1>All Issues</h1>
+          <h1>{t("issueList.title")}</h1>
           <p>
-            {filteredIssues.length} of {issues.length} issues
+            {t("issueList.resultCount", { visible: filteredIssues.length, total: issues.length })}
           </p>
         </div>
         <button
@@ -89,7 +179,7 @@ export function IssueListPage() {
           type="button"
           onClick={() => setShowFilters((value) => !value)}
         >
-          Filter
+          {t("issueList.filter")}
         </button>
       </header>
 
@@ -97,7 +187,7 @@ export function IssueListPage() {
         <input
           type="search"
           value={searchQuery}
-          placeholder="Search issues..."
+          placeholder={t("issueList.searchPlaceholder")}
           onChange={(event) => setSearchQuery(event.target.value)}
         />
       </div>
@@ -105,7 +195,7 @@ export function IssueListPage() {
       {showFilters ? (
         <section className="filter-panel">
           <div>
-            <p>Status</p>
+            <p>{t("issueList.status")}</p>
             <div className="filter-row">
               {STATUS_OPTIONS.map((status) => (
                 <button
@@ -114,13 +204,13 @@ export function IssueListPage() {
                   className={statusFilter === status ? "active" : ""}
                   onClick={() => setStatusFilter(status)}
                 >
-                  {status}
+                  {translateStatus(status)}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <p>Category</p>
+            <p>{t("issueList.category")}</p>
             <div className="filter-row">
               {CATEGORY_OPTIONS.map((category) => (
                 <button
@@ -129,7 +219,7 @@ export function IssueListPage() {
                   className={categoryFilter === category ? "active" : ""}
                   onClick={() => setCategoryFilter(category)}
                 >
-                  {category}
+                  {translateCategory(category)}
                 </button>
               ))}
             </div>
@@ -137,19 +227,27 @@ export function IssueListPage() {
         </section>
       ) : null}
 
-      {loading ? <div className="state-card">Loading issues...</div> : null}
+      {loading ? <div className="state-card">{t("common.loadingIssues")}</div> : null}
       {error ? <div className="alert alert--error">{error}</div> : null}
 
       {!loading && !error && filteredIssues.length === 0 ? (
         <div className="state-card">
-          <h2>No issues found</h2>
-          <p>Try adjusting your search or filters.</p>
+          <h2>{t("issueList.noIssuesFound")}</h2>
+          <p>{t("issueList.adjustFilters")}</p>
         </div>
       ) : null}
 
       <div className="cards-grid cards-grid--three">
         {filteredIssues.map((issue) => (
-          <IssueCard key={issue.id} issue={issue} onClick={(item) => setSelectedIssue(item)} />
+          <IssueCard
+            key={issue.id}
+            issue={issue}
+            onClick={(item) => setSelectedIssue(item)}
+            onVote={(item, type) => {
+              void handleVote(item, type);
+            }}
+            isVoting={votingIssueIds.includes(issue.id)}
+          />
         ))}
       </div>
 

@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import { IssueStatus } from "../../modules/issue/issue.types";
+import { IssueStatus, VoteType } from "../../modules/issue/issue.types";
 import { AppError } from "./error.middleware";
 
 export const validateStatusUpdateRequest = (
@@ -28,6 +28,22 @@ export const validateIssueIdParam = (
 
   if (!id || !mongoose.isValidObjectId(id)) {
     next(new AppError("Invalid issue id", 400));
+    return;
+  }
+
+  next();
+};
+
+export const validateVoteUpdateRequest = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void => {
+  const { type } = req.body as Record<string, unknown>;
+  const allowedTypes: VoteType[] = ["upvote", "downvote"];
+
+  if (typeof type !== "string" || !allowedTypes.includes(type as VoteType)) {
+    next(new AppError(`type must be one of ${allowedTypes.join(", ")}`, 400));
     return;
   }
 

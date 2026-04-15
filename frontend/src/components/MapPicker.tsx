@@ -1,3 +1,5 @@
+import { useI18n } from "../i18n";
+
 interface MapPickerProps {
   latitude: string;
   longitude: string;
@@ -6,10 +8,12 @@ interface MapPickerProps {
 }
 
 export function MapPicker({ latitude, longitude, onLatitudeChange, onLongitudeChange }: MapPickerProps) {
+  const { t } = useI18n();
+
   return (
-    <section className="map-picker" aria-label="Location picker">
+    <section className="map-picker" aria-label={t("mapPicker.locationPicker")}>
       <div className="field-group">
-        <label htmlFor="latitude">Latitude</label>
+        <label htmlFor="latitude">{t("issueDetail.latitude")}</label>
         <input
           id="latitude"
           name="latitude"
@@ -23,7 +27,7 @@ export function MapPicker({ latitude, longitude, onLatitudeChange, onLongitudeCh
       </div>
 
       <div className="field-group">
-        <label htmlFor="longitude">Longitude</label>
+        <label htmlFor="longitude">{t("issueDetail.longitude")}</label>
         <input
           id="longitude"
           name="longitude"
@@ -36,7 +40,7 @@ export function MapPicker({ latitude, longitude, onLatitudeChange, onLongitudeCh
         />
       </div>
 
-      <p className="map-picker__hint">Simple coordinate input for the MVP. A real map can be added later.</p>
+      <p className="map-picker__hint">{t("mapPicker.hint")}</p>
     </section>
   );
 }

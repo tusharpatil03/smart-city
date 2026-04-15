@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
 import { useIssues } from "../hooks/useIssues";
+import { useI18n } from "../i18n";
 import type { IssueStatus } from "../types/issue";
 
 const statusTransitions: Record<IssueStatus, IssueStatus[]> = {
@@ -10,13 +11,8 @@ const statusTransitions: Record<IssueStatus, IssueStatus[]> = {
   resolved: []
 };
 
-const formatDate = (value: string): string =>
-  new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-
 export function IssueDetailPage() {
+  const { formatDateTime, t, translateCategory, translateStatus } = useI18n();
   const { id } = useParams<{ id: string }>();
   const { issue, loading, saving, error, loadIssue, updateStatus } = useIssues();
 
@@ -41,20 +37,20 @@ export function IssueDetailPage() {
   };
 
   if (!id) {
-    return <div className="card state-card">Missing issue id.</div>;
+    return <div className="card state-card">{t("issueDetail.missingId")}</div>;
   }
 
   if (loading && issue === null) {
-    return <div className="card state-card">Loading issue...</div>;
+    return <div className="card state-card">{t("common.loadingIssue")}</div>;
   }
 
   if (issue === null) {
     return (
       <section className="page-stack">
         <Link className="back-link" to="/">
-          Back to issues
+          {t("issueDetail.backToIssues")}
         </Link>
-        {error !== null ? <div className="alert alert--error">{error}</div> : <div className="card state-card">Loading issue...</div>}
+        {error !== null ? <div className="alert alert--error">{error}</div> : <div className="card state-card">{t("common.loadingIssue")}</div>}
       </section>
     );
   }
@@ -64,13 +60,13 @@ export function IssueDetailPage() {
   return (
     <section className="page-stack">
       <Link className="back-link" to="/">
-        Back to issues
+        {t("issueDetail.backToIssues")}
       </Link>
 
       <article className="card detail-card">
         <div className="detail-card__header">
           <div>
-            <p className="eyebrow">Issue details</p>
+            <p className="eyebrow">{t("issueDetail.details")}</p>
             <h1>{issue.title}</h1>
           </div>
           <StatusBadge status={issue.status} />
@@ -78,50 +74,50 @@ export function IssueDetailPage() {
 
         <div className="detail-grid">
           <div className="detail-block">
-            <h2>Description</h2>
-            <p>{issue.description?.trim() || "No description provided."}</p>
+            <h2>{t("common.description")}</h2>
+            <p>{issue.description?.trim() || t("issueDetail.noDescription")}</p>
           </div>
 
           <div className="detail-block">
-            <h2>Category</h2>
-            <p>{issue.category}</p>
+            <h2>{t("common.category")}</h2>
+            <p>{translateCategory(issue.category)}</p>
           </div>
 
           <div className="detail-block">
-            <h2>Location</h2>
+            <h2>{t("common.location")}</h2>
             <p>
-              Latitude {issue.location.coordinates[1].toFixed(6)}
+              {t("issueDetail.latitude")} {issue.location.coordinates[1].toFixed(6)}
               <br />
-              Longitude {issue.location.coordinates[0].toFixed(6)}
+              {t("issueDetail.longitude")} {issue.location.coordinates[0].toFixed(6)}
             </p>
           </div>
 
           <div className="detail-block">
-            <h2>Media</h2>
+            <h2>{t("issueDetail.media")}</h2>
             {issue.images.length > 0 ? (
               <a href={issue.images[0]} target="_blank" rel="noreferrer">
-                Open image
+                {t("issueDetail.openImage")}
               </a>
             ) : (
-              <p>No image attached.</p>
+              <p>{t("issueDetail.noImage")}</p>
             )}
           </div>
 
           <div className="detail-block">
-            <h2>Assignment</h2>
+            <h2>{t("issueDetail.assignment")}</h2>
             <p>
               {issue.assigned_to.split("_").join(" ")}
               <br />
-              Address {issue.address}
+              {t("issueDetail.address")} {issue.address}
             </p>
           </div>
 
           <div className="detail-block">
-            <h2>Timestamps</h2>
+            <h2>{t("issueDetail.timestamps")}</h2>
             <p>
-              Created {formatDate(issue.created_at)}
+              {t("issueDetail.created")} {formatDateTime(issue.created_at)}
               <br />
-              Updated {formatDate(issue.updated_at)}
+              {t("issueDetail.updated")} {formatDateTime(issue.updated_at)}
             </p>
           </div>
         </div>
@@ -130,7 +126,7 @@ export function IssueDetailPage() {
 
         <div className="status-actions">
           {nextStatuses.length === 0 ? (
-            <p className="status-actions__note">This issue is already resolved.</p>
+            <p className="status-actions__note">{t("issueDetail.alreadyResolved")}</p>
           ) : (
             nextStatuses.map((status) => (
               <button
@@ -142,7 +138,7 @@ export function IssueDetailPage() {
                 }}
                 disabled={saving}
               >
-                Mark as {status.replace("_", " ")}
+                {t("issueDetail.markAs", { status: translateStatus(status) })}
               </button>
             ))
           )}

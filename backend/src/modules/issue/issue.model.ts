@@ -1,5 +1,10 @@
-import { Document, Model, Schema, model } from "mongoose";
-import { IssueCategory, ISSUE_CATEGORIES, IssueStatus } from "./issue.types";
+import { Document, Model, Schema, Types, model } from "mongoose";
+import { IssueCategory, ISSUE_CATEGORIES, IssueStatus, VoteType } from "./issue.types";
+
+interface IssueVoteSubdocument {
+  userId: string;
+  type: VoteType;
+}
 
 export interface IssueDocument extends Document {
   title: string;
@@ -14,10 +19,28 @@ export interface IssueDocument extends Document {
   status: IssueStatus;
   assigned_to: string;
   priority_score: number;
-  duplicate_of?: Schema.Types.ObjectId;
+  duplicate_of?: Types.ObjectId;
+  votes: IssueVoteSubdocument[];
   created_at: Date;
   updated_at: Date;
 }
+
+const issueVoteSchema = new Schema<IssueVoteSubdocument>(
+  {
+    userId: {
+      type: String,
+      required: true
+    },
+    type: {
+      type: String,
+      enum: ["upvote", "downvote"],
+      required: true
+    }
+  },
+  {
+    _id: false
+  }
+);
 
 const issueSchema = new Schema<IssueDocument>(
   {
@@ -84,6 +107,10 @@ const issueSchema = new Schema<IssueDocument>(
     duplicate_of: {
       type: Schema.Types.ObjectId,
       ref: "Issue"
+    },
+    votes: {
+      type: [issueVoteSchema],
+      default: []
     }
   },
   {

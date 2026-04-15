@@ -74,6 +74,13 @@ export interface IssueLocation {
   coordinates: [number, number];
 }
 
+export type VoteType = "upvote" | "downvote";
+
+export interface IssueVote {
+  userId: string;
+  type: VoteType;
+}
+
 export interface Issue {
   _id: Types.ObjectId;
   title: string;
@@ -86,6 +93,7 @@ export interface Issue {
   assigned_to: string;
   priority_score: number;
   duplicate_of?: Types.ObjectId;
+  votes: IssueVote[];
   created_at: Date;
   updated_at: Date;
 }
@@ -124,4 +132,10 @@ export interface ListIssueInput {
 export interface UpdateIssueStatusInput {
   issueId: string;
   status: IssueStatus;
+}
+
+export interface VoteOnIssueInput {
+  issueId: string;
+  userId: string;
+  type: VoteType;
 }

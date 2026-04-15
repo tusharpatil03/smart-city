@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useI18n } from "../i18n";
 import type { CivicIssue } from "../services/api";
 
 interface MapViewProps {
@@ -30,6 +31,7 @@ export function MapView({
   onLocationSelect,
   selectedLocation
 }: MapViewProps) {
+  const { t, translateCategory, translateStatus } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const issueMarkersRef = useRef<L.Marker[]>([]);
@@ -68,17 +70,30 @@ export function MapView({
 
         L.marker([pos.coords.latitude, pos.coords.longitude], { icon: currentIcon })
           .addTo(map)
-          .bindPopup("Your current location");
+          .bindPopup(t("map.yourCurrentLocation"));
       });
     }
 
     mapRef.current = map;
+    window.setTimeout(() => {
+      map.invalidateSize();
+    }, 0);
 
     return () => {
       map.remove();
       mapRef.current = null;
     };
   }, [center, zoom, onLocationSelect, showCurrentLocation]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (!map) {
+      return;
+    }
+
+    map.setView(center, zoom);
+  }, [center, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -100,7 +115,7 @@ export function MapView({
 
       const marker = L.marker([issue.latitude, issue.longitude], { icon }).addTo(map);
 
-      marker.bindPopup(`<strong>${issue.title}</strong><br/>${issue.category}<br/>${issue.status}`);
+      marker.bindPopup(`<strong>${issue.title}</strong><br/>${translateCategory(issue.category)}<br/>${translateStatus(issue.status)}`);
 
       if (onMarkerClick) {
         marker.on("click", () => onMarkerClick(issue));
@@ -108,7 +123,7 @@ export function MapView({
 
       issueMarkersRef.current.push(marker);
     });
-  }, [issues, onMarkerClick]);
+  }, [issues, onMarkerClick, translateCategory, translateStatus]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -133,9 +148,17 @@ export function MapView({
         icon
       }).addTo(map);
 
+      selectedMarkerRef.current.bindPopup(t("map.selectedLocation")).openPopup();
+
       map.panTo([selectedLocation[0], selectedLocation[1]]);
     }
-  }, [selectedLocation]);
+  }, [selectedLocation, t]);
 
-  return <div ref={containerRef} className="map-view" style={{ height }} />;
+  return (
+    <div
+      ref={containerRef}
+      className={`map-view ${onLocationSelect ? "map-view--selectable" : ""}`}
+      style={{ height }}
+    />
+  );
 }

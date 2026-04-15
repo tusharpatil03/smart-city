@@ -8,7 +8,8 @@ import {
   CreateIssueServiceOutput,
   IssueCategory,
   IssueStatus,
-  UpdateIssueStatusInput
+  UpdateIssueStatusInput,
+  VoteOnIssueInput
 } from "./issue.types";
 
 const statusTransitionMap: Record<IssueStatus, IssueStatus[]> = {
@@ -81,6 +82,10 @@ export class IssueService {
     return issueRepository.findAll(filter ?? undefined);
   }
 
+  async previewLocation(lat: number, lng: number): Promise<string> {
+    return reverseGeocode(lat, lng);
+  }
+
   async getIssueById(id: string) {
     const issue = await issueRepository.findById(id);
 
@@ -112,6 +117,16 @@ export class IssueService {
     }
 
     const updated = await issueRepository.updateStatus(input.issueId, input.status);
+
+    if (!updated) {
+      throw new AppError("Issue not found", 404);
+    }
+
+    return updated;
+  }
+
+  async voteOnIssue(input: VoteOnIssueInput) {
+    const updated = await issueRepository.saveVote(input.issueId, input.userId, input.type);
 
     if (!updated) {
       throw new AppError("Issue not found", 404);

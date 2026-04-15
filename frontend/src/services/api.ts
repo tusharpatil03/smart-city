@@ -1,6 +1,7 @@
 import type { CreateIssueInput, CreateIssueResponse, Issue, IssueStatus } from "../types/issue";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000").replace(/\/$/, "");
+const VOTER_ID_STORAGE_KEY = "smart-city-voter-id";
 
 type QueryValue = string | number | undefined;
 
@@ -19,7 +20,12 @@ interface StatusUpdateRequestBody {
   status: IssueStatus;
 }
 
+interface VoteIssueRequestBody {
+  type: VoteType;
+}
+
 export type CivicIssueStatus = "Reported" | "In Progress" | "Resolved";
+export type VoteType = "upvote" | "downvote";
 
 export type CivicIssueCategory =
   | "Pothole"
@@ -42,6 +48,10 @@ export interface CivicIssue {
   createdAt: string;
   updatedAt: string;
   address?: string;
+  upvotes: number;
+  downvotes: number;
+  netScore: number;
+  currentUserVote: VoteType | null;
 }
 
 export interface CreateReportInput {
@@ -51,6 +61,10 @@ export interface CreateReportInput {
   latitude: number;
   longitude: number;
   image?: string | null;
+}
+
+export interface LocationPreviewResponse {
+  address: string;
 }
 
 interface ReportApiResponse {
@@ -65,9 +79,32 @@ interface ReportApiResponse {
   createdAt: string;
   updatedAt: string;
   address?: string;
+  upvotes: number;
+  downvotes: number;
+  netScore: number;
+  currentUserVote: VoteType | null;
 }
 
 const buildUrl = (path: string): string => `${API_BASE_URL}${path}`;
+
+const getClientVoterId = (): string => {
+  if (typeof window === "undefined") {
+    return "server-render";
+  }
+
+  const stored = window.localStorage.getItem(VOTER_ID_STORAGE_KEY);
+  if (stored && stored.trim().length > 0) {
+    return stored;
+  }
+
+  const generated =
+    typeof window.crypto?.randomUUID === "function"
+      ? window.crypto.randomUUID()
+      : `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  window.localStorage.setItem(VOTER_ID_STORAGE_KEY, generated);
+  return generated;
+};
 
 const buildQueryString = (params: Record<string, QueryValue>): string => {
   const searchParams = new URLSearchParams();
@@ -113,6 +150,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      "x-user-id": getClientVoterId(),
       ...(init?.headers ?? {})
     }
   });
@@ -220,7 +258,11 @@ const toCivicIssue = (issue: ReportApiResponse): CivicIssue => {
     imageUrl: issue.imageUrl ?? undefined,
     createdAt: issue.createdAt,
     updatedAt: issue.updatedAt,
-    address: issue.address
+    address: issue.address,
+    upvotes: issue.upvotes,
+    downvotes: issue.downvotes,
+    netScore: issue.netScore,
+    currentUserVote: issue.currentUserVote
   };
 };
 
@@ -246,5 +288,23 @@ export const civicApi = {
     });
 
     return toCivicIssue(report);
+  },
+
+  async voteIssue(issueId: string, type: VoteType): Promise<CivicIssue> {
+    const body: VoteIssueRequestBody = { type };
+    const report = await request<ReportApiResponse>(`/api/issues/${issueId}/vote`, {
+      method: "PUT",
+      body: JSON.stringify(body)
+    });
+
+    return toCivicIssue(report);
+  },
+
+  async getLocationPreview(latitude: number, longitude: number): Promise<string> {
+    const response = await request<LocationPreviewResponse>(
+      `/api/issues/location-preview${buildQueryString({ latitude, longitude })}`
+    );
+
+    return response.address;
   }
 };
