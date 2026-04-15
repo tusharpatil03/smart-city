@@ -2,6 +2,8 @@ import type { CreateIssueInput, CreateIssueResponse, Issue, IssueStatus } from "
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000").replace(/\/$/, "");
 const VOTER_ID_STORAGE_KEY = "smart-city-voter-id";
+export const AUTH_TOKEN_STORAGE_KEY = "smart-city-authority-token";
+export const AUTH_USER_STORAGE_KEY = "smart-city-authority-user";
 
 type QueryValue = string | number | undefined;
 
@@ -72,6 +74,18 @@ export interface IssueStats {
   reported: number;
   inProgress: number;
   resolved: number;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: "authority";
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
 }
 
 interface ReportApiResponse {
@@ -153,11 +167,15 @@ const parseErrorMessage = async (response: Response): Promise<string> => {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token =
+    typeof window !== "undefined" ? window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY) : null;
+
   const response = await fetch(buildUrl(path), {
     ...init,
     headers: {
       "Content-Type": "application/json",
       "x-user-id": getClientVoterId(),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {})
     }
   });
@@ -317,5 +335,21 @@ export const civicApi = {
 
   async getIssueStats(): Promise<IssueStats> {
     return request<IssueStats>("/api/issues/stats");
+  }
+};
+
+export const authApi = {
+  async register(input: { name: string; email: string; password: string }): Promise<{ message: string }> {
+    return request<{ message: string }>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  },
+
+  async login(input: { email: string; password: string }): Promise<AuthResponse> {
+    return request<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
   }
 };

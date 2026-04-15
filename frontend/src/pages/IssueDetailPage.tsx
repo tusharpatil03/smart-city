@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { StatusBadge } from "../components/StatusBadge";
 import { useIssues } from "../hooks/useIssues";
 import { useI18n } from "../i18n";
@@ -13,6 +14,7 @@ const statusTransitions: Record<IssueStatus, IssueStatus[]> = {
 
 export function IssueDetailPage() {
   const { formatDateTime, t, translateCategory, translateStatus } = useI18n();
+  const { isAuthenticated } = useAuth();
   const { id } = useParams<{ id: string }>();
   const { issue, loading, saving, error, loadIssue, updateStatus } = useIssues();
 
@@ -125,7 +127,11 @@ export function IssueDetailPage() {
         {error !== null ? <div className="alert alert--error">{error}</div> : null}
 
         <div className="status-actions">
-          {nextStatuses.length === 0 ? (
+          {!isAuthenticated ? (
+            <p className="status-actions__note">
+              {t("auth.authorityActionNotice")} <Link to="/authority/login">{t("auth.authorityLogin")}</Link>
+            </p>
+          ) : nextStatuses.length === 0 ? (
             <p className="status-actions__note">{t("issueDetail.alreadyResolved")}</p>
           ) : (
             nextStatuses.map((status) => (

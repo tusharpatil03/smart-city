@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { IssueDetailModal } from "../components/IssueDetailModal";
 import { civicApi, issueApi, type CivicIssue, type CivicIssueStatus, type IssueStats } from "../services/api";
 import { useI18n } from "../i18n";
 import type { IssueStatus } from "../types/issue";
@@ -28,6 +29,7 @@ export function AdminPanelPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CivicIssueStatus | "All">("All");
   const [draftStatusById, setDraftStatusById] = useState<Record<string, CivicIssueStatus>>({});
+  const [selectedIssue, setSelectedIssue] = useState<CivicIssue | null>(null);
 
   const loadData = async (): Promise<void> => {
     setLoading(true);
@@ -46,7 +48,7 @@ export function AdminPanelPage() {
         }, {})
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load admin data.");
+      setError(err instanceof Error ? err.message : t("admin.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -96,7 +98,7 @@ export function AdminPanelPage() {
       await issueApi.updateIssueStatus(issueId, toLegacyStatus(nextStatus));
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update issue status.");
+      setError(err instanceof Error ? err.message : t("admin.updateFailed"));
     } finally {
       setSavingId(null);
     }
@@ -106,15 +108,15 @@ export function AdminPanelPage() {
     <section className="civic-page civic-page--subtle">
       <header className="admin-header">
         <div>
-          <h1>Admin Panel</h1>
-          <p>Manage all reported issues, monitor stats, and update issue status.</p>
+          <h1>{t("admin.title")}</h1>
+          <p>{t("admin.subtitle")}</p>
         </div>
         <button className="button button--secondary" type="button" onClick={() => void loadData()} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh Data"}
+          {loading ? t("admin.refreshing") : t("admin.refresh")}
         </button>
       </header>
 
-      <section className="admin-stats-grid" aria-label="Admin issue stats">
+      <section className="admin-stats-grid" aria-label={t("admin.statsAria")}>
         <article className="admin-stat-card">
           <p>{t("home.totalIssues")}</p>
           <strong>{displayStats.total}</strong>
@@ -138,7 +140,7 @@ export function AdminPanelPage() {
           <input
             type="search"
             value={query}
-            placeholder="Search by title, address, category..."
+            placeholder={t("admin.searchPlaceholder")}
             onChange={(event) => setQuery(event.target.value)}
           />
           <select
@@ -162,7 +164,7 @@ export function AdminPanelPage() {
 
       {error ? <div className="alert alert--error">{error}</div> : null}
 
-      {loading ? <div className="state-card">Loading admin data...</div> : null}
+      {loading ? <div className="state-card">{t("admin.loading")}</div> : null}
 
       {!loading ? (
         <section className="panel admin-table-wrap">
@@ -170,12 +172,12 @@ export function AdminPanelPage() {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Issue</th>
-                  <th>Category</th>
-                  <th>Status</th>
-                  <th>Votes</th>
-                  <th>Created</th>
-                  <th>Action</th>
+                  <th>{t("admin.issue")}</th>
+                  <th>{t("common.category")}</th>
+                  <th>{t("issueList.status")}</th>
+                  <th>{t("admin.votes")}</th>
+                  <th>{t("admin.created")}</th>
+                  <th>{t("admin.action")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,6 +199,13 @@ export function AdminPanelPage() {
                     <td>{formatDateTime(issue.createdAt, { dateStyle: "medium", timeStyle: undefined })}</td>
                     <td>
                       <div className="admin-action">
+                        <button
+                          className="button button--secondary"
+                          type="button"
+                          onClick={() => setSelectedIssue(issue)}
+                        >
+                          {t("admin.viewDetails")}
+                        </button>
                         <select
                           value={draftStatusById[issue.id] ?? issue.status}
                           onChange={(event) => {
@@ -218,7 +227,7 @@ export function AdminPanelPage() {
                           }}
                           disabled={savingId === issue.id || draftStatusById[issue.id] === issue.status}
                         >
-                          {savingId === issue.id ? "Saving..." : "Save"}
+                          {savingId === issue.id ? t("admin.saving") : t("admin.save")}
                         </button>
                       </div>
                     </td>
@@ -229,10 +238,12 @@ export function AdminPanelPage() {
           </div>
 
           {!loading && filteredIssues.length === 0 ? (
-            <div className="state-card admin-empty">No matching issues found.</div>
+            <div className="state-card admin-empty">{t("admin.noMatches")}</div>
           ) : null}
         </section>
       ) : null}
+
+      <IssueDetailModal issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
     </section>
   );
 }

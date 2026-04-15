@@ -40,6 +40,42 @@ const englishMessages = {
   "home.liveIssueMap": "Live Issue Map",
   "home.recentIssues": "Recent Issues",
   "home.viewAll": "View all ->",
+  "auth.authorityLogin": "Authority Login",
+  "auth.authorityLoginHelp": "Sign in as a city authority to update issue status and manage the admin panel.",
+  "auth.registerAuthority": "Register Authority",
+  "auth.registerAuthorityHelp": "Create an authority account for municipal issue management.",
+  "auth.name": "Name",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.namePlaceholder": "City Admin",
+  "auth.passwordPlaceholder": "Enter password",
+  "auth.login": "Login",
+  "auth.register": "Register",
+  "auth.logout": "Logout",
+  "auth.loginSuccess": "Login successful. Redirecting...",
+  "auth.loginFailed": "Failed to login.",
+  "auth.registerFailed": "Failed to register authority account.",
+  "auth.needAuthorityAccount": "Need an authority account?",
+  "auth.backToLogin": "Back to login",
+  "auth.authorityActionNotice": "Only logged-in authorities can update issue status.",
+  "admin.title": "Admin Panel",
+  "admin.subtitle": "Manage reported issues, monitor stats, and update issue status.",
+  "admin.refresh": "Refresh Data",
+  "admin.refreshing": "Refreshing...",
+  "admin.statsAria": "Admin issue stats",
+  "admin.searchPlaceholder": "Search by title, address, category...",
+  "admin.loading": "Loading admin data...",
+  "admin.loadFailed": "Failed to load admin data.",
+  "admin.updateFailed": "Failed to update issue status.",
+  "admin.issue": "Issue",
+  "admin.votes": "Votes",
+  "admin.created": "Created",
+  "admin.action": "Action",
+  "admin.viewDetails": "View details",
+  "admin.save": "Save",
+  "admin.saving": "Saving...",
+  "admin.noMatches": "No matching issues found.",
+  "toast.issueSubmitted": "Issue submitted successfully",
 
   "issueList.title": "All Issues",
   "issueList.resultCount": "{visible} of {total} issues",
@@ -147,7 +183,7 @@ const englishMessages = {
 } as const;
 
 type TranslationKey = keyof typeof englishMessages;
-type MessageDictionary = Record<TranslationKey, string>;
+type MessageDictionary = Partial<Record<TranslationKey, string>>;
 
 const messages: Record<Language, MessageDictionary> = {
   en: englishMessages,
@@ -461,7 +497,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const t = useCallback(
     (key: TranslationKey, values?: InterpolationValues): string => {
-      const template = messages[language][key] ?? messages.en[key];
+      const template = messages[language][key] ?? messages.en[key] ?? key;
       return interpolate(template, values);
     },
     [language]
