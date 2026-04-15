@@ -1,17 +1,22 @@
 import { Document, Model, Schema, model } from "mongoose";
-import { IssueStatus } from "./issue.types";
+import { IssueCategory, ISSUE_CATEGORIES, IssueStatus } from "./issue.types";
 
 export interface IssueDocument extends Document {
   title: string;
-  description?: string;
+  description: string;
+  category: IssueCategory;
   location: {
     type: "Point";
     coordinates: [number, number];
   };
-  image_url?: string;
+  images: string[];
+  address: string;
   status: IssueStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  assigned_to: string;
+  priority_score: number;
+  duplicate_of?: Schema.Types.ObjectId;
+  created_at: Date;
+  updated_at: Date;
 }
 
 const issueSchema = new Schema<IssueDocument>(
@@ -19,11 +24,21 @@ const issueSchema = new Schema<IssueDocument>(
     title: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
+      minlength: 3,
+      maxlength: 160
     },
     description: {
       type: String,
-      trim: true
+      required: true,
+      trim: true,
+      minlength: 5,
+      maxlength: 2000
+    },
+    category: {
+      type: String,
+      required: true,
+      enum: ISSUE_CATEGORIES
     },
     location: {
       type: {
@@ -41,23 +56,46 @@ const issueSchema = new Schema<IssueDocument>(
         }
       }
     },
-    image_url: {
+    images: {
+      type: [String],
+      default: []
+    },
+    address: {
       type: String,
+      required: true,
       trim: true
     },
     status: {
       type: String,
       enum: Object.values(IssueStatus),
-      default: IssueStatus.OPEN,
+      default: IssueStatus.REPORTED,
       required: true
+    },
+    assigned_to: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    priority_score: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    duplicate_of: {
+      type: Schema.Types.ObjectId,
+      ref: "Issue"
     }
   },
   {
-    timestamps: true,
+    timestamps: {
+      createdAt: "created_at",
+      updatedAt: "updated_at"
+    },
     versionKey: false
   }
 );
 
 issueSchema.index({ location: "2dsphere" });
+issueSchema.index({ category: 1, created_at: -1 });
 
 export const IssueModel: Model<IssueDocument> = model<IssueDocument>("Issue", issueSchema);

@@ -1,37 +1,79 @@
+import { uploadImages } from "../../integrations/cloudinary.service";
+import { reverseGeocode } from "../../integrations/maps.service";
 import { AppError } from "../../shared/middleware/error.middleware";
 import { GeoFilter } from "../../shared/utils/geo.utils";
 import { CreateIssueRepositoryInput, issueRepository } from "./issue.repository";
+import { validateCreateIssueInput } from "./issue.validator";
 import {
-  CreateIssueInput,
+  CreateIssueServiceOutput,
+  IssueCategory,
   IssueStatus,
   UpdateIssueStatusInput
 } from "./issue.types";
 
 const statusTransitionMap: Record<IssueStatus, IssueStatus[]> = {
-  [IssueStatus.OPEN]: [IssueStatus.IN_PROGRESS, IssueStatus.RESOLVED],
+  [IssueStatus.REPORTED]: [IssueStatus.IN_PROGRESS, IssueStatus.RESOLVED],
   [IssueStatus.IN_PROGRESS]: [IssueStatus.RESOLVED],
   [IssueStatus.RESOLVED]: []
 };
 
+const authorityMap: Record<IssueCategory, string> = {
+  road: "road_department",
+  water: "water_department",
+  electricity: "electricity_department",
+  garbage: "waste_management"
+};
+
+const getAssignedAuthority = (category: IssueCategory): string => authorityMap[category];
+
 export class IssueService {
-  async createIssue(input: CreateIssueInput) {
+  async createIssue(rawInput: unknown): Promise<CreateIssueServiceOutput> {
+    const input = validateCreateIssueInput(rawInput);
+    const imageUrls = await uploadImages(input.images);
+    const address = await reverseGeocode(input.location.lat, input.location.lng);
+    const assignedAuthority = getAssignedAuthority(input.category);
+    const duplicate = await issueRepository.findNearbyByCategory(
+      input.category,
+      input.location.lng,
+      input.location.lat,
+      50
+    );
+
     const repositoryInput: CreateIssueRepositoryInput = {
       title: input.title,
+      description: input.description,
+      category: input.category,
       location: {
         type: "Point",
-        coordinates: [input.longitude, input.latitude]
-      }
+        coordinates: [input.location.lng, input.location.lat]
+      },
+      images: imageUrls,
+      address,
+      status: IssueStatus.REPORTED,
+      assigned_to: assignedAuthority,
+      priority_score: 0
     };
 
-    if (input.description !== undefined) {
-      repositoryInput.description = input.description;
+    if (duplicate) {
+      repositoryInput.duplicate_of = duplicate._id.toString();
     }
 
-    if (input.image_url !== undefined) {
-      repositoryInput.image_url = input.image_url;
-    }
+    const createdIssue = await issueRepository.createIssue(repositoryInput);
 
-    return issueRepository.create(repositoryInput);
+    console.log("[event] issue.created", {
+      issueId: createdIssue._id.toString(),
+      category: createdIssue.category,
+      assigned_to: createdIssue.assigned_to,
+      duplicate_of: createdIssue.duplicate_of?.toString()
+    });
+
+    return {
+      id: createdIssue._id.toString(),
+      status: createdIssue.status,
+      assigned_to: createdIssue.assigned_to,
+      created_at: createdIssue.created_at.toISOString(),
+      ...(createdIssue.duplicate_of ? { duplicate_of: createdIssue.duplicate_of.toString() } : {})
+    };
   }
 
   async getIssues(filter?: GeoFilter | null) {

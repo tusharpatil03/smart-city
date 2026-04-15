@@ -5,9 +5,9 @@ import { useIssues } from "../hooks/useIssues";
 import type { IssueStatus } from "../types/issue";
 
 const statusTransitions: Record<IssueStatus, IssueStatus[]> = {
-  OPEN: ["IN_PROGRESS", "RESOLVED"],
-  IN_PROGRESS: ["RESOLVED"],
-  RESOLVED: []
+  reported: ["in_progress", "resolved"],
+  in_progress: ["resolved"],
+  resolved: []
 };
 
 const formatDate = (value: string): string =>
@@ -83,6 +83,11 @@ export function IssueDetailPage() {
           </div>
 
           <div className="detail-block">
+            <h2>Category</h2>
+            <p>{issue.category}</p>
+          </div>
+
+          <div className="detail-block">
             <h2>Location</h2>
             <p>
               Latitude {issue.location.coordinates[1].toFixed(6)}
@@ -93,8 +98,8 @@ export function IssueDetailPage() {
 
           <div className="detail-block">
             <h2>Media</h2>
-            {issue.image_url?.trim() ? (
-              <a href={issue.image_url} target="_blank" rel="noreferrer">
+            {issue.images.length > 0 ? (
+              <a href={issue.images[0]} target="_blank" rel="noreferrer">
                 Open image
               </a>
             ) : (
@@ -103,11 +108,20 @@ export function IssueDetailPage() {
           </div>
 
           <div className="detail-block">
+            <h2>Assignment</h2>
+            <p>
+              {issue.assigned_to.split("_").join(" ")}
+              <br />
+              Address {issue.address}
+            </p>
+          </div>
+
+          <div className="detail-block">
             <h2>Timestamps</h2>
             <p>
-              Created {formatDate(issue.createdAt)}
+              Created {formatDate(issue.created_at)}
               <br />
-              Updated {formatDate(issue.updatedAt)}
+              Updated {formatDate(issue.updated_at)}
             </p>
           </div>
         </div>
@@ -128,7 +142,7 @@ export function IssueDetailPage() {
                 }}
                 disabled={saving}
               >
-                Mark as {status.replace("_", " ").toLowerCase()}
+                Mark as {status.replace("_", " ")}
               </button>
             ))
           )}

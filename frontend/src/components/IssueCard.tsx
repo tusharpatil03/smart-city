@@ -1,38 +1,53 @@
-import { Link } from "react-router-dom";
-import type { Issue } from "../types/issue";
+import type { CivicIssue } from "../services/api";
 import { StatusBadge } from "./StatusBadge";
 
 interface IssueCardProps {
-  issue: Issue;
+  issue: CivicIssue;
+  onClick?: (issue: CivicIssue) => void;
 }
 
-const formatDescription = (description: string | undefined): string => {
-  const text = description?.trim();
-
-  if (!text) {
-    return "No description provided.";
-  }
-
-  if (text.length <= 140) {
-    return text;
-  }
-
-  return `${text.slice(0, 137)}...`;
+const formatDate = (value: string): string => {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date(value));
 };
 
-export function IssueCard({ issue }: IssueCardProps) {
+const categoryEmoji: Record<CivicIssue["category"], string> = {
+  Pothole: "🕳️",
+  Garbage: "🗑️",
+  Streetlight: "💡",
+  Flooding: "🌊",
+  Graffiti: "🎨",
+  "Road Damage": "🚧",
+  Other: "📍"
+};
+
+export function IssueCard({ issue, onClick }: IssueCardProps) {
   return (
-    <Link className="issue-card" to={`/issues/${issue._id}`}>
-      <div className="issue-card__header">
-        <h3>{issue.title}</h3>
-        <StatusBadge status={issue.status} />
+    <button className="issue-card" type="button" onClick={() => onClick?.(issue)}>
+      <div className="issue-card__media">
+        {issue.imageUrl ? (
+          <img src={issue.imageUrl} alt={issue.title} loading="lazy" />
+        ) : (
+          <div className="issue-card__placeholder">{categoryEmoji[issue.category]}</div>
+        )}
+
+        <div className="issue-card__chip">{issue.category}</div>
+        <div className="issue-card__badge-wrap">
+          <StatusBadge status={issue.status} size="sm" />
+        </div>
       </div>
 
-      <p className="issue-card__description">{formatDescription(issue.description)}</p>
+      <div className="issue-card__content">
+        <h3>{issue.title}</h3>
+        <p className="issue-card__description">{issue.description}</p>
 
-      <p className="issue-card__meta">
-        Coordinates: {issue.location.coordinates[1].toFixed(4)}, {issue.location.coordinates[0].toFixed(4)}
-      </p>
-    </Link>
+        <p className="issue-card__meta">{issue.address ?? `${issue.latitude.toFixed(5)}, ${issue.longitude.toFixed(5)}`}</p>
+
+        <p className="issue-card__meta">{formatDate(issue.createdAt)}</p>
+      </div>
+    </button>
   );
 }

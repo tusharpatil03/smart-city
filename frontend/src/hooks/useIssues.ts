@@ -1,6 +1,11 @@
 import { useCallback, useState } from "react";
 import { issueApi } from "../services/api";
-import type { CreateIssueInput, Issue, IssueStatus } from "../types/issue";
+import type {
+  CreateIssueInput,
+  CreateIssueResponse,
+  Issue,
+  IssueStatus
+} from "../types/issue";
 
 type LoadMode = "load" | "save";
 
@@ -59,10 +64,8 @@ export function useIssues() {
   );
 
   const createIssue = useCallback(
-    async (input: CreateIssueInput): Promise<Issue> => {
+    async (input: CreateIssueInput): Promise<CreateIssueResponse> => {
       const response = await execute("save", () => issueApi.createIssue(input));
-      setIssues((currentIssues) => [response, ...currentIssues]);
-      setIssue(response);
       return response;
     },
     [execute]

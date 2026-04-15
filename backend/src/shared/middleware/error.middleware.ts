@@ -3,11 +3,15 @@ import mongoose from "mongoose";
 
 export class AppError extends Error {
   public readonly statusCode: number;
+  public readonly code: string | undefined;
+  public readonly details: unknown;
 
-  constructor(message: string, statusCode = 500) {
+  constructor(message: string, statusCode = 500, code?: string, details?: unknown) {
     super(message);
     this.name = "AppError";
     this.statusCode = statusCode;
+    this.code = code;
+    this.details = details;
   }
 }
 
@@ -17,27 +21,66 @@ export const notFoundMiddleware = (req: Request, _res: Response, next: NextFunct
 
 export const errorMiddleware = (
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
+  const isReferenceEndpoint =
+    req.path === "/api/report" ||
+    req.path === "/api/reports" ||
+    req.path === "/api/healthz";
+
+  const sendReferenceError = (statusCode: number, message: string): void => {
+    res.status(statusCode).json({
+      error: message
+    });
+  };
+
   if (err instanceof AppError) {
+    if (isReferenceEndpoint) {
+      sendReferenceError(err.statusCode, err.message);
+      return;
+    }
+
     res.status(err.statusCode).json({
-      error: err.message
+      success: false,
+      error: {
+        message: err.message,
+        ...(err.code ? { code: err.code } : {}),
+        ...(err.details !== undefined ? { details: err.details } : {})
+      }
     });
     return;
   }
 
   if (err instanceof mongoose.Error.CastError) {
+    if (isReferenceEndpoint) {
+      sendReferenceError(400, `Invalid ${err.path}`);
+      return;
+    }
+
     res.status(400).json({
-      error: `Invalid ${err.path}`
+      success: false,
+      error: {
+        message: `Invalid ${err.path}`,
+        code: "CAST_ERROR"
+      }
     });
     return;
   }
 
   if (err instanceof mongoose.Error.ValidationError) {
+    if (isReferenceEndpoint) {
+      sendReferenceError(400, err.message);
+      return;
+    }
+
     res.status(400).json({
-      error: err.message
+      success: false,
+      error: {
+        message: err.message,
+        code: "VALIDATION_ERROR"
+      }
     });
     return;
   }
@@ -49,20 +92,47 @@ export const errorMiddleware = (
     "code" in err &&
     (err as { code?: unknown }).code === 11000
   ) {
+    if (isReferenceEndpoint) {
+      sendReferenceError(409, "Duplicate key error");
+      return;
+    }
+
     res.status(409).json({
-      error: "Duplicate key error"
+      success: false,
+      error: {
+        message: "Duplicate key error",
+        code: "DUPLICATE_KEY"
+      }
     });
     return;
   }
 
   if (err instanceof Error) {
+    if (isReferenceEndpoint) {
+      sendReferenceError(500, err.message);
+      return;
+    }
+
     res.status(500).json({
-      error: err.message
+      success: false,
+      error: {
+        message: err.message,
+        code: "INTERNAL_ERROR"
+      }
     });
     return;
   }
 
+  if (isReferenceEndpoint) {
+    sendReferenceError(500, "Internal Server Error");
+    return;
+  }
+
   res.status(500).json({
-    error: "Internal Server Error"
+    success: false,
+    error: {
+      message: "Internal Server Error",
+      code: "INTERNAL_ERROR"
+    }
   });
 };
