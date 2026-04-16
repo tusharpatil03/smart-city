@@ -3,3 +3,4 @@
 **/.vite/
 **/coverage/
 .DS_Store
+.env
