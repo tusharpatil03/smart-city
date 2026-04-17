@@ -76,11 +76,15 @@ export interface IssueStats {
   resolved: number;
 }
 
+interface CategorizeIssueResponse {
+  category: CivicIssueCategory;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: "authority";
+  role: "authority" | "admin";
 }
 
 export interface AuthResponse {
@@ -335,6 +339,21 @@ export const civicApi = {
 
   async getIssueStats(): Promise<IssueStats> {
     return request<IssueStats>("/api/issues/stats");
+  },
+
+  async categorizeIssueDescription(input: {
+    title?: string;
+    description?: string;
+  }): Promise<CivicIssueCategory> {
+    const response = await request<CategorizeIssueResponse>("/api/ai/categorize", {
+      method: "POST",
+      body: JSON.stringify({
+        title: input.title ?? "",
+        description: input.description ?? ""
+      })
+    });
+
+    return categoryFromBackend(response.category);
   }
 };
 

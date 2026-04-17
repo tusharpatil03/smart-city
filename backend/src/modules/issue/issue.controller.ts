@@ -1,4 +1,9 @@
 import { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { authService } from "../auth/auth.service";
+import type { AuthenticatedAuthority } from "../auth/auth.types";
+import { env } from "../../shared/config/env";
+import { resendService } from "../../shared/integrations/resend.service";
 import { AppError } from "../../shared/middleware/error.middleware";
 import { parseGeoFilter } from "../../shared/utils/geo.utils";
 import { issueService } from "./issue.service";
@@ -9,6 +14,8 @@ import { validateCreateReportInput } from "./issue.validator";
 interface AuthenticatedRequestUser {
   id?: string;
   _id?: string;
+  email?: string;
+  name?: string;
 }
 
 type AuthenticatedRequest = Request & {
@@ -25,6 +32,49 @@ const getVoteActorId = (req: Request): string => {
   return req.header("x-user-id")?.trim() || "anonymous-browser";
 };
 
+const getAuthorizationToken = (req: Request): string | undefined => {
+  const authorization = req.header("authorization");
+
+  if (!authorization || !authorization.startsWith("Bearer ")) {
+    return undefined;
+  }
+
+  const token = authorization.slice("Bearer ".length).trim();
+  return token || undefined;
+};
+
+const getAuthenticatedAuthority = async (
+  req: Request
+): Promise<AuthenticatedAuthority | undefined> => {
+  const userFromRequest = (req as AuthenticatedRequest).user;
+
+  if (userFromRequest?.id && userFromRequest.email) {
+    return {
+      id: userFromRequest.id,
+      name: userFromRequest.name || "Authority",
+      email: userFromRequest.email,
+      role: "authority"
+    };
+  }
+
+  const token = getAuthorizationToken(req);
+  if (!token) {
+    return undefined;
+  }
+
+  try {
+    const payload = jwt.verify(token, env.jwtSecret) as { id?: string; role?: string };
+
+    if (!payload.id || payload.role !== "authority") {
+      return undefined;
+    }
+
+    return await authService.getAuthorityById(payload.id);
+  } catch {
+    return undefined;
+  }
+};
+
 export class IssueController {
   async createIssue(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -39,6 +89,7 @@ export class IssueController {
   async createReport(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const input = validateCreateReportInput(req.body);
+      const authority = await getAuthenticatedAuthority(req);
 
       const created = await issueService.createIssue({
         title: input.title,
@@ -52,6 +103,34 @@ export class IssueController {
       });
 
       const issue = await issueService.getIssueById(created.id);
+
+      const actorUserId = authority?.id ?? getCurrentUserId(req);
+      const socketId = actorUserId ? global.users?.[actorUserId] : undefined;
+
+      console.log(`[Issue] Created issue: ${created.id}`);
+      console.log(`[Notification] Actor userId: ${actorUserId}`);
+      console.log(`[Notification] Socket ID: ${socketId ? socketId : "❌ NOT FOUND"}`);
+
+      if (socketId && global.io) {
+        global.io.to(socketId).emit("issueCreated", {
+          message: "Issue submitted successfully ✅"
+        });
+        console.log(`[Notification] ✅ Socket.IO event emitted to ${socketId}`);
+      } else {
+        console.warn(`[Notification] ⚠️ Socket emit skipped (socketId: ${socketId}, io: ${global.io ? "ok" : "missing"})`);
+      }
+
+      if (authority?.email) {
+        console.log(`[Email] Sending to: ${authority.email}`);
+        try {
+          await resendService.sendIssueCreatedEmail(authority.email, issue.description);
+          console.log(`[Email] ✅ Email sent successfully to ${authority.email}`);
+        } catch (emailError) {
+          console.error(`[Email] ❌ Failed to send email to ${authority.email}:`, emailError);
+        }
+      } else {
+        console.warn(`[Email] ⚠️ No authority email found`);
+      }
 
       res.status(201).json(toReportResponse(issue));
     } catch (error) {

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ImageUpload } from "../components/ImageUpload";
 import { useI18n } from "../i18n";
@@ -32,6 +32,9 @@ export function CreateIssuePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [suggestedCategory, setSuggestedCategory] = useState<CivicIssueCategory | null>(null);
+  const [isCategoryManuallyChosen, setIsCategoryManuallyChosen] = useState(false);
+  const suggestionRequestId = useRef(0);
 
   const updateField = (field: keyof typeof formState, value: string): void => {
     setFormState((currentState) => ({ ...currentState, [field]: value }));
@@ -80,6 +83,55 @@ export function CreateIssuePage() {
       active = false;
     };
   }, [effectiveLocation]);
+
+  useEffect(() => {
+    const trimmedTitle = formState.title.trim();
+    const trimmedDescription = formState.description.trim();
+    const combinedText = `${trimmedTitle} ${trimmedDescription}`.trim();
+
+    if (combinedText.length < 4) {
+      setSuggestedCategory(null);
+
+      if (!isCategoryManuallyChosen && formState.category) {
+        setFormState((currentState) => ({ ...currentState, category: "" }));
+      }
+
+      return;
+    }
+
+    const currentRequestId = suggestionRequestId.current + 1;
+    suggestionRequestId.current = currentRequestId;
+
+    const timeoutId = window.setTimeout(() => {
+      civicApi
+        .categorizeIssueDescription({
+          title: trimmedTitle,
+          description: trimmedDescription
+        })
+        .then((category) => {
+          if (suggestionRequestId.current !== currentRequestId) {
+            return;
+          }
+
+          setSuggestedCategory(category);
+
+          if (!isCategoryManuallyChosen) {
+            setFormState((currentState) => ({ ...currentState, category }));
+          }
+        })
+        .catch(() => {
+          if (suggestionRequestId.current !== currentRequestId) {
+            return;
+          }
+
+          setSuggestedCategory(null);
+        });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [formState.title, formState.description, isCategoryManuallyChosen]);
 
   const detectLocation = (): void => {
     if (!navigator.geolocation) {
@@ -179,11 +231,19 @@ export function CreateIssuePage() {
               id="description"
               name="description"
               value={formState.description}
-              onChange={(event) => updateField("description", event.target.value)}
+              onChange={(event) => {
+                updateField("description", event.target.value);
+              }}
               placeholder={t("create.descriptionPlaceholder")}
               rows={4}
               required
             />
+
+            {suggestedCategory ? (
+              <p className="field-help field-help--suggestion">
+                {t("create.suggestedCategory", { category: translateCategory(suggestedCategory) })}
+              </p>
+            ) : null}
           </div>
 
           <div className="field-group">
@@ -194,7 +254,10 @@ export function CreateIssuePage() {
                   key={category}
                   type="button"
                   className={formState.category === category ? "active" : ""}
-                  onClick={() => updateField("category", category)}
+                  onClick={() => {
+                    setIsCategoryManuallyChosen(true);
+                    updateField("category", category);
+                  }}
                 >
                   {translateCategory(category)}
                 </button>

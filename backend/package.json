@@ -18,7 +18,9 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.5.2",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "resend": "^6.11.0",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
