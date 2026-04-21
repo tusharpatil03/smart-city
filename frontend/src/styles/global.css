@@ -552,6 +552,7 @@ button {
 }
 
 .button--secondary {
+
   background: #fff;
   border-color: var(--line);
   color: #475569;
