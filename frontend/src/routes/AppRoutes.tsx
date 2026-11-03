@@ -7,6 +7,7 @@ import { CreateIssuePage } from "../pages/CreateIssuePage";
 import { IssueDetailPage } from "../pages/IssueDetailPage";
 import { IssueListPage } from "../pages/IssueListPage";
 import { HomePage } from "../pages/HomePage";
+import { ProfilePage } from "../pages/ProfilePage";
 
 export function AppRoutes() {
   return (
@@ -22,6 +23,7 @@ export function AppRoutes() {
       />
       <Route path="/issues" element={<IssueListPage />} />
       <Route path="/report" element={<CreateIssuePage />} />
+      <Route path="/profile" element={<ProfilePage />} />
       <Route path="/authority/login" element={<AuthorityLoginPage />} />
       <Route path="/authority/register" element={<AuthorityRegisterPage />} />
       <Route path="/issues/:id" element={<IssueDetailPage />} />

@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import morgan from "morgan";
+import { aiRouter } from "./modules/ai/ai.routes";
 import { authRouter } from "./modules/auth/auth.routes";
 import { issueController } from "./modules/issue/issue.controller";
 import { issueRouter } from "./modules/issue/issue.routes";
@@ -26,6 +27,7 @@ app.get("/api/healthz", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/ai", aiRouter);
 
 app.post("/api/report", (req, res, next) => {
   void issueController.createReport(req, res, next);
