@@ -9,6 +9,8 @@ interface EnvConfig {
   port: number;
   mongodbUri: string;
   jwtSecret: string;
+  clientOrigin: string;
+  resendApiKey?: string;
 }
 
 const parseNodeEnv = (value: string | undefined): NodeEnvironment => {
@@ -43,5 +45,9 @@ export const env: EnvConfig = {
   mongodbUri: requireValue(process.env.MONGODB_URI, "MONGODB_URI"),
   jwtSecret: process.env.JWT_SECRET && process.env.JWT_SECRET.trim().length > 0
     ? process.env.JWT_SECRET
-    : "dev-jwt-secret"
+    : "dev-jwt-secret",
+  clientOrigin: process.env.CLIENT_ORIGIN?.trim() || "http://localhost:5173",
+  ...(process.env.RESEND_API_KEY?.trim()
+    ? { resendApiKey: process.env.RESEND_API_KEY.trim() }
+    : {})
 };
