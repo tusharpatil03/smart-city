@@ -3,4 +3,5 @@ import { env } from "../config/env";
 
 export const connectMongo = async (): Promise<void> => {
   await mongoose.connect(env.mongodbUri);
+  console.log("Connected to mongodb");
 };
